@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Axiom
+Comment=Axiom P2P Cryptocurrency
+Comment[fr]=Axiom, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Axiom, eşten eşe kriptografik sanal para birimi
+Exec=axiom-qt %u
+Terminal=false
+Type=Application
+Icon=axiom128
+MimeType=x-scheme-handler/axiom;
+Categories=Office;Finance;

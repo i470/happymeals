@@ -1,0 +1,26 @@
+[Unit]
+Description=Axiom's distributed currency daemon
+After=network.target
+
+[Service]
+User=axiom
+Group=axiom
+
+Type=forking
+PIDFile=/var/lib/axiomd/axiomd.pid
+
+ExecStart=/usr/bin/axiomd -daemon -pid=/var/lib/axiomd/axiomd.pid \
+          -conf=/etc/axiom/axiom.conf -datadir=/var/lib/axiomd
+
+ExecStop=-/usr/bin/axiom-cli -conf=/etc/axiom/axiom.conf \
+         -datadir=/var/lib/axiomd stop
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

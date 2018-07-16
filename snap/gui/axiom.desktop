@@ -1,0 +1,15 @@
+# http://standards.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
+
+[Desktop Entry]
+Type=Application
+Version=1.4.35
+Encoding=UTF-8
+Name=Axiom
+Icon=${SNAP}/axiom128.png
+MimeType=x-scheme-handler/axiom;
+Exec=axiom %u
+Terminal=false
+Categories=Office;Finance;
+Comment=Axiom P2P Cryptocurrency
+Keywords=internet;axiom;
+Name[de_AT]=axiom.desktop
