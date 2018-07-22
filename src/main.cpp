@@ -1228,10 +1228,13 @@ bool BlockToMintValueVector(const CBlock& block, const CoinDenomination denom, v
 std::list<libzerocoin::CoinDenomination> ZerocoinSpendListFromBlock(const CBlock& block, bool fFilterInvalid)
 {
     std::list<libzerocoin::CoinDenomination> vSpends;
+    /*
     for (const CTransaction tx : block.vtx) {
+        LogPrintf("test3");
         if (!tx.IsZerocoinSpend())
             continue;
 
+        LogPrintf("test4");
         for (const CTxIn txin : tx.vin) {
             if (!txin.scriptSig.IsZerocoinSpend())
                 continue;
@@ -1245,7 +1248,7 @@ std::list<libzerocoin::CoinDenomination> ZerocoinSpendListFromBlock(const CBlock
             libzerocoin::CoinDenomination c = libzerocoin::IntToZerocoinDenomination(txin.nSequence);
             vSpends.push_back(c);
         }
-    }
+    }*/
     return vSpends;
 }
 
@@ -1399,10 +1402,11 @@ bool CheckTransaction(const CTransaction& tx, bool fZerocoinActive, bool fReject
     BOOST_FOREACH (const CTxOut& txout, tx.vout) {
         if (txout.IsEmpty() && !tx.IsCoinBase() && !tx.IsCoinStake())
             return state.DoS(100, error("CheckTransaction(): txout empty for user transaction"));
-
+/*
         if (txout.nValue < 0)
             return state.DoS(100, error("CheckTransaction() : txout.nValue negative"),
                 REJECT_INVALID, "bad-txns-vout-negative");
+*/
         if (txout.nValue > Params().MaxMoneyOut())
             return state.DoS(100, error("CheckTransaction() : txout.nValue too high"),
                 REJECT_INVALID, "bad-txns-vout-toolarge");
@@ -1451,9 +1455,9 @@ bool CheckTransaction(const CTransaction& tx, bool fZerocoinActive, bool fReject
     }
 
     if (tx.IsCoinBase()) {
-        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 150)
+       /* if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 150)
             return state.DoS(100, error("CheckTransaction() : coinbase script size=%d", tx.vin[0].scriptSig.size()),
-                REJECT_INVALID, "bad-cb-length");
+                REJECT_INVALID, "bad-cb-length"); */
     } else if (fZerocoinActive && tx.IsZerocoinSpend()) {
         if(tx.vin.size() < 1 || static_cast<int>(tx.vin.size()) > Params().Zerocoin_MaxSpendsPerTransaction())
             return state.DoS(10, error("CheckTransaction() : Zerocoin Spend has more than allowed txin's"), REJECT_INVALID, "bad-zerocoinspend");
@@ -2122,7 +2126,7 @@ int64_t GetBlockValue(int nHeight)
             Full premine size is 198360471. First 100 blocks mine 250000 axiom per block - 198360471 - (100 * 250000) = 173360471
             */
             // 87.4 % of premine
-            return 173360471 * COIN;
+            return 3360471 * COIN;
         } else if (nHeight < 200 && nHeight > 1) {
             return 250000 * COIN;
         } else if (nHeight >= 200 && nHeight <= Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
@@ -2218,7 +2222,7 @@ bool IsInitialBlockDownload()
     if (lockIBDState)
         return false;
     bool state = (chainActive.Height() < pindexBestHeader->nHeight - 24 * 6 ||
-                  pindexBestHeader->GetBlockTime() < GetTime() - 6 * 60 * 60); // ~144 blocks behind -> 2 x fork detection time
+                  (chainActive.Height() > 1 && pindexBestHeader->GetBlockTime() < GetTime() - 6 * 60 * 60)); // ~144 blocks behind -> 2 x fork detection time
     if (!state)
         lockIBDState = true;
     return state;
@@ -2845,7 +2849,7 @@ void RecalculateZAXMSpent()
         //Rewrite zAXM supply
         CBlock block;
         assert(ReadBlockFromDisk(block, pindex));
-
+LogPrintf("test2\n");
         list<libzerocoin::CoinDenomination> listDenomsSpent = ZerocoinSpendListFromBlock(block, true);
 
         //Reset the supply to previous block
@@ -3182,6 +3186,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::list<CZerocoinMint> listMints;
     bool fFilterInvalid = pindex->nHeight >= Params().Zerocoin_Block_RecalculateAccumulators();
     BlockToZerocoinMintList(block, listMints, fFilterInvalid);
+    LogPrintf("test1\n");
     std::list<libzerocoin::CoinDenomination> listSpends = ZerocoinSpendListFromBlock(block, fFilterInvalid);
 
     if (pindex->nHeight == Params().Zerocoin_Block_RecalculateAccumulators() + 1) {
@@ -4146,7 +4151,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
             REJECT_INVALID, "block-version");
 
         // AxiomTor - disable reject block as our blocks are in version 4 since block 1
-        /* this check can be cleaned up (**TODO** after test)
+        /* this check can be cleaned up (**TODO** after test)*/
         /*
     } else {
         if (block.nVersion >= Params().Zerocoin_HeaderVersion())
@@ -4314,7 +4319,7 @@ bool CheckWork(const CBlock block, CBlockIndex* const pindexPrev)
 
     unsigned int nBitsRequired = GetNextWorkRequired(pindexPrev, &block);
 
-    if (block.IsProofOfWork() && (pindexPrev->nHeight + 1 <= 1001)) {
+    if (block.IsProofOfWork() && (pindexPrev == NULL || pindexPrev->nHeight + 1 <= 1001)) {
         double n1 = ConvertBitsToDouble(block.nBits);
         double n2 = ConvertBitsToDouble(nBitsRequired);
 
@@ -4423,6 +4428,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
+    /*
     if (block.nVersion >= 2 &&
         CBlockIndex::IsSuperMajority(2, pindexPrev, Params().EnforceBlockUpgradeMajority())) {
         CScript expect = CScript() << nHeight;
@@ -4431,7 +4437,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
             return state.DoS(100, error("%s : block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
         }
     }
-
+   */
     return true;
 }
 

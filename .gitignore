@@ -7,12 +7,12 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/axiam
-src/axiamd
-src/axiam-cli
-src/axiam-tx
-src/test/test_axiam
-src/qt/test/test_axiam-qt
+src/axiom
+src/axiomd
+src/axiom-cli
+src/axiom-tx
+src/test/test_axiom
+src/qt/test/test_axiom-qt
 
 # autoreconf
 Makefile.in
@@ -38,14 +38,19 @@ confdefs.h
 conftest.cpp
 conftest.err
 libtool
-src/config/axiam-config.h
-src/config/axiam-config.h.in
+src/config/axiom-config.h
+src/config/axiom-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
 contrib/devtools/split-debug.sh
 
 src/univalue/gen
+src/univalue/*.*
+src/univalue/pc/libunivalue-uninstalled.pc
+src/univalue/pc/libunivalue.pc
+src/univalue/stamp-h1
+src/univalue/build-aux/
 
 src/qt/*.moc
 src/qt/moc_*.cpp
@@ -65,7 +70,7 @@ src/qt/test/moc*.cpp
 *.o
 *.o-*
 *.patch
-.axiam
+.axiom
 *.a
 *.pb.cc
 *.pb.h
@@ -84,12 +89,12 @@ src/qt/test/moc*.cpp
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-axiam-qt
-AXIAM-Qt.app
+axiom-qt
+AXIOM-Qt.app
 
 # Unit-tests
 Makefile.test
-axiam-qt_test
+axiom-qt_test
 src/test/buildenv.py
 
 # Resources cpp
@@ -105,7 +110,7 @@ build
 #lcov
 *.gcno
 /*.info
-test_axiam.coverage/
+test_axiom.coverage/
 total.coverage/
 coverage_percent.txt
 

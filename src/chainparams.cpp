@@ -120,13 +120,13 @@ public:
         //nMaturity = 100;
         nMaturity = 25;
         nMasternodeCountDrift = 20;             
-        nMaxMoneyOut = 21000000 * COIN;        // Max. Money is calculated by 2x premine value
+        nMaxMoneyOut = 800000000 * COIN;        // Max. Money is calculated by 2x premine value
 
         /** Height or Time Based Activations **/
         nLastPOWBlock = 1001;                   // PoW Phase 3 End
         nModifierUpdateBlock = 1100;            // Modify block on height
         nZerocoinStartHeight = 1500;            // Zerocoin start height
-        nZerocoinStartTime = 1532908191;        // GMT: Sunday 29 July 2018 23:49:51
+        nZerocoinStartTime = 1534807872;        // GMT: Sunday 29 July 2018 23:49:51
         nBlockEnforceSerialRange = 1;           // Enforce serial range starting this block
         nBlockRecalculateAccumulators = 1650; // Trigger a recalculation of accumulators
         nBlockFirstFraudulent = 99999999;           // 1110; //First block that bad serials emerged (currently we do not have any) *** TODO ***

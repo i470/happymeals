@@ -256,6 +256,8 @@ bool CScript::IsZerocoinMint() const
 
 bool CScript::IsZerocoinSpend() const
 {
+    if (this == NULL)
+        return false;
     return (this->size() > 0 &&
         this->at(0) == OP_ZEROCOINSPEND);
 }
