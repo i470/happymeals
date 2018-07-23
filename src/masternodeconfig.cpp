@@ -32,7 +32,7 @@ bool CMasternodeConfig::read(std::string& strErr)
             std::string strHeader = "#Multi masternode config\n"
                                     "#=======================\n"
                                     "# \n"
-                                    "#The multi masternode config allows you to control multiple masternodes from a single wallet. The wallet needs to have a valid collateral output of 25000 coins for each masternode. To use this, place a file named masternode.conf in the data directory of your install:\n"
+                                    "#The multi masternode config allows you to control multiple masternodes from a single wallet. The wallet needs to have a valid collateral output of 40000 coins for each masternode. To use this, place a file named masternode.conf in the data directory of your install:\n"
                                     "# * Windows: %APPDATA%\axiom\\n"
                                     "# * Mac OS: ~/Library/Application Support/axiom/\n"
                                     "# * Unix/Linux: ~/.axiom/\n"
@@ -47,7 +47,7 @@ bool CMasternodeConfig::read(std::string& strErr)
                                     "#```\n"
                                     "# \n"
                                     "#In the example above:\n"
-                                    "#* the collateral for mn1 consists of transaction 49012766543cac37369cf3813d6216bdddc1b9a8ed03ac690221be10aa5edd6c, output index 0 has amount 25000\n"
+                                    "#* the collateral for mn1 consists of transaction 49012766543cac37369cf3813d6216bdddc1b9a8ed03ac690221be10aa5edd6c, output index 0 has amount 40000\n"
                                     "#* masternode 2 will donate 33% of its income\n"
                                     "#* masternode 3 will donate 100% of its income\n"
                                     "# \n"
@@ -91,17 +91,17 @@ bool CMasternodeConfig::read(std::string& strErr)
         }
 
         if (Params().NetworkID() == CBaseChainParams::MAIN) {
-            if (CService(ip).GetPort() != 35433) {
+            if (CService(ip).GetPort() != Params().GetDefaultPort()) {
                 strErr = _("Invalid port detected in masternode.conf") + "\n" +
                          strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                         _("(must be 35433 for mainnet)");
+                         _("(") +  strprintf(_("%d"), Params().GetDefaultPort()) +  _("could be used only on mainnet)");
                 streamConfig.close();
                 return false;
             }
-        } else if (CService(ip).GetPort() == 35433) {
+        } else if (CService(ip).GetPort() == Params().GetDefaultPort()) {
             strErr = _("Invalid port detected in masternode.conf") + "\n" +
                      strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                     _("(35433 could be used only on mainnet)");
+                     _("(") +  strprintf(_("%d"), Params().GetDefaultPort()) +  _("could be used only on mainnet)");
             streamConfig.close();
             return false;
         }

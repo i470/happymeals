@@ -2112,62 +2112,35 @@ double ConvertBitsToDouble(unsigned int nBits)
     return dDiff;
 }
 
-int64_t GetBlockValue(int nHeight)
+CAmount GetBlockValue(int nHeight)
 {
-    int64_t nSubsidy = 0;
+    CAmount nSubsidy = 0;
     
-    if (Params().NetworkID() == CBaseChainParams::REGTEST || Params().NetworkID() == CBaseChainParams::TESTNET) {
-        if (nHeight == 0) {
-            // Genesis block
-            return 0 * COIN;
-        } else if (nHeight == 1) {
-            /* PREMINE: Current available axiom on DEX marketc 198360471 axiom
-            Info abobut premine: 
-            Full premine size is 198360471. First 100 blocks mine 250000 axiom per block - 198360471 - (100 * 250000) = 173360471
-            */
-            // 87.4 % of premine
-            return 3360471 * COIN;
-        } else if (nHeight < 200 && nHeight > 1) {
-            return 250000 * COIN;
-        } else if (nHeight >= 200 && nHeight <= Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            return 100000 * COIN;
-        } else if (nHeight >= 200 && nHeight > Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            return 3.8 / 90 * 100 * COIN;
-        } else {
-            return 0 * COIN;
-        }
+    if (nHeight == 0) {
+        // Genesis block
+        nSubsidy = 0 * COIN;
+    } else if (nHeight == 1) {
+         /* PREMINE: xxxx axiom */
+         nSubsidy = 8000000 * COIN;
+    } else if (nHeight <= Params().LAST_POW_BLOCK()) {
+         nSubsidy = 0 * COIN;
     } else {
-        // MAIN
-        if (nHeight == 0) {
-            // Genesis block
-            nSubsidy = 0 * COIN;
-        } else if (nHeight == 1) {
-            /* PREMINE: Current available axiom on DEX marketc 198360471 axiom
-            Info abobut premine: 
-            Full premine size is 198360471. First 100 blocks mine 250000 axiom per block - 198360471 - (100 * 250000) = 173360471
-            */
-            // 87.4 % of premine
-            nSubsidy = 173360471 * COIN;
-        } else if (nHeight > 1 && nHeight <= 101 && nHeight <= Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            // PoW Phase 1 does produce 12.6 % of full premine (25000000 AXM)
-            nSubsidy = 250000 * COIN;
-        } else if (nHeight > 1 && nHeight > 101 && nHeight <= Params().LAST_POW_BLOCK()) {
-            // PoW Phase does not produce any coins
-            nSubsidy = 0 * COIN;
-        } else if (nHeight > Params().LAST_POW_BLOCK() && nHeight <= 10000) {
-            // PoS - Phase 1 lasts until block 1110)
-            nSubsidy = 0 * COIN;
-        } else if (nHeight > Params().LAST_POW_BLOCK() && nHeight > 10000) {
-            // PoS - Phase 2 lasts until - undefined)
-            nSubsidy = 3.8 * COIN;
-        } else {
-            nSubsidy = 0 * COIN;
-        }
+         nSubsidy = 5 * COIN;
     }
-
+    
     return nSubsidy;
 }
 
+CAmount GetBlockValueDevFund(int nHeight)
+{
+    CAmount ret = 0;
+    
+    if (nHeight > Params().LAST_POW_BLOCK()) {
+        ret = GetBlockValue(nHeight) * Params().GetDevFundPercent() / 100;
+    }
+    
+    return ret;
+}
 
 int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCount)
 {
@@ -2191,7 +2164,7 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
                 nMasternodeCount = mnodeman.size();
         }
 
-        int64_t mNodeCoins = nMasternodeCount * 25000 * COIN;
+        int64_t mNodeCoins = nMasternodeCount * Params().GetRequiredMasternodeCollateral();
 
         // Use this log to compare the masternode count for different clients
         LogPrintf("Adjusting seesaw at height %d with %d masternodes (without drift: %d) at %ld\n", nHeight, nMasternodeCount, nMasternodeCount - Params().MasternodeCountDrift(), GetTime());
