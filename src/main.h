@@ -57,6 +57,14 @@ class CValidationState;
 struct CBlockTemplate;
 struct CNodeStateStats;
 
+static const uint64_t COIN_PREMINE_AMOUNT = 8500000;
+static const uint64_t COIN_BLOCK_POW_REWARD = 10;
+static const uint64_t COIN_POW_DECREASE_AMOUNT = 1;
+static const uint64_t COIN_YEAR_POS_REWARD = 8 * CENT;
+static const uint32_t MASTERNODE_COINS = 40000;
+static const uint32_t MASTERNODE_POS_PERCENT = 35;
+static const uint32_t MASTERNODE_POW_PERCENT = 35;
+
 /** Default for -blockmaxsize and -blockminsize, which control the range of sizes the mining code will create **/
 static const unsigned int DEFAULT_BLOCK_MAX_SIZE = 750000;
 static const unsigned int DEFAULT_BLOCK_MIN_SIZE = 0;
@@ -107,6 +115,7 @@ static const unsigned int BLOCK_DOWNLOAD_WINDOW = 1024;
 static const unsigned int DATABASE_WRITE_INTERVAL = 3600;
 /** Maximum length of reject messages. */
 static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
+
 
 /** Enable bloom filter */
  static const bool DEFAULT_PEERBLOOMFILTERS = true;
@@ -244,6 +253,9 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
 bool ActivateBestChain(CValidationState& state, CBlock* pblock = NULL, bool fAlreadyChecked = false);
 CAmount GetBlockValue(int nHeight);
+CAmount GetPOSBlockValue(int64_t nCoinAge); //stalking set 8%
+// dev fund part of the block value
+CAmount GetBlockValueDevFund(int nHeight);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex* InsertBlockIndex(uint256 hash);
@@ -264,7 +276,7 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
 
 int GetInputAge(CTxIn& vin);
 int GetInputAgeIX(uint256 nTXHash, CTxIn& vin);
-bool GetCoinAge(const CTransaction& tx, unsigned int nTxTime, uint64_t& nCoinAge);
+bool GetCoinAge(const CTransaction& tx, unsigned int nTxTime, uint64_t& nCoinAge, uint64_t& nRawValue);
 int GetIXConfirmations(uint256 nTXHash);
 
 struct CNodeStateStats {

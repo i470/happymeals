@@ -865,6 +865,14 @@ int GetIXConfirmations(uint256 nTXHash)
     return 0;
 }
 
+bool CTransaction::GetCoinAge(uint64_t& nCoinAge, uint32_t nTime, uint64_t& nRawValue) const
+{
+    uint32_t nTxTime = nTime;
+    if (!nTxTime) {
+        nTxTime = GetAdjustedTime();
+    }
+    return ::GetCoinAge(*this, nTxTime, nCoinAge, nRawValue);
+}
 // ppcoin: total coin age spent in transaction, in the unit of coin-days.
 // Only those coins meeting minimum age requirement counts. As those
 // transactions not in main chain are not currently indexed so we
@@ -872,10 +880,11 @@ int GetIXConfirmations(uint256 nTXHash)
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nCoinAge)
+bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nCoinAge, uint64_t& nRawValue)
 {
     uint256 bnCentSecond = 0; // coin age in the unit of cent-seconds
     nCoinAge = 0;
+    nRawValue = 0;
 
     CBlockIndex* pindex = NULL;
     BOOST_FOREACH (const CTxIn& txin, tx.vin) {
@@ -907,15 +916,17 @@ bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nC
         }
 
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
-        bnCentSecond += uint256(nValueIn) * (nTxTime - prevblock.nTime);
+        nRawValue += nValueIn;
+        bnCentSecond += uint256(nValueIn) / CENT * (nTxTime - prevblock.nTime);
     }
 
-    uint256 bnCoinDay = bnCentSecond / COIN / (24 * 60 * 60);
-    LogPrintf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
+    //LogPrintf("coin age nTxTime=%d\n", nTxTime);
+    //LogPrintf("coin age bnCentSecond=%s\n", bnCentSecond.ToString().c_str());
+    uint256 bnCoinDay = bnCentSecond * CENT / (24 * 60 * 60);
+    //LogPrintf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
     nCoinAge = bnCoinDay.GetCompact();
     return true;
 }
-
 bool MoneyRange(CAmount nValueOut)
 {
     return nValueOut >= 0 && nValueOut <= Params().MaxMoneyOut();
@@ -1228,10 +1239,13 @@ bool BlockToMintValueVector(const CBlock& block, const CoinDenomination denom, v
 std::list<libzerocoin::CoinDenomination> ZerocoinSpendListFromBlock(const CBlock& block, bool fFilterInvalid)
 {
     std::list<libzerocoin::CoinDenomination> vSpends;
+    /*
     for (const CTransaction tx : block.vtx) {
+        LogPrintf("test3");
         if (!tx.IsZerocoinSpend())
             continue;
 
+        LogPrintf("test4");
         for (const CTxIn txin : tx.vin) {
             if (!txin.scriptSig.IsZerocoinSpend())
                 continue;
@@ -1245,7 +1259,7 @@ std::list<libzerocoin::CoinDenomination> ZerocoinSpendListFromBlock(const CBlock
             libzerocoin::CoinDenomination c = libzerocoin::IntToZerocoinDenomination(txin.nSequence);
             vSpends.push_back(c);
         }
-    }
+    }*/
     return vSpends;
 }
 
@@ -1399,10 +1413,11 @@ bool CheckTransaction(const CTransaction& tx, bool fZerocoinActive, bool fReject
     BOOST_FOREACH (const CTxOut& txout, tx.vout) {
         if (txout.IsEmpty() && !tx.IsCoinBase() && !tx.IsCoinStake())
             return state.DoS(100, error("CheckTransaction(): txout empty for user transaction"));
-
+/*
         if (txout.nValue < 0)
             return state.DoS(100, error("CheckTransaction() : txout.nValue negative"),
                 REJECT_INVALID, "bad-txns-vout-negative");
+*/
         if (txout.nValue > Params().MaxMoneyOut())
             return state.DoS(100, error("CheckTransaction() : txout.nValue too high"),
                 REJECT_INVALID, "bad-txns-vout-toolarge");
@@ -1451,9 +1466,9 @@ bool CheckTransaction(const CTransaction& tx, bool fZerocoinActive, bool fReject
     }
 
     if (tx.IsCoinBase()) {
-        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 150)
+       /* if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 150)
             return state.DoS(100, error("CheckTransaction() : coinbase script size=%d", tx.vin[0].scriptSig.size()),
-                REJECT_INVALID, "bad-cb-length");
+                REJECT_INVALID, "bad-cb-length"); */
     } else if (fZerocoinActive && tx.IsZerocoinSpend()) {
         if(tx.vin.size() < 1 || static_cast<int>(tx.vin.size()) > Params().Zerocoin_MaxSpendsPerTransaction())
             return state.DoS(10, error("CheckTransaction() : Zerocoin Spend has more than allowed txin's"), REJECT_INVALID, "bad-zerocoinspend");
@@ -2108,62 +2123,35 @@ double ConvertBitsToDouble(unsigned int nBits)
     return dDiff;
 }
 
-int64_t GetBlockValue(int nHeight)
+CAmount GetBlockValue(int nHeight)
 {
-    int64_t nSubsidy = 0;
+    CAmount nSubsidy = 0;
     
-    if (Params().NetworkID() == CBaseChainParams::REGTEST || Params().NetworkID() == CBaseChainParams::TESTNET) {
-        if (nHeight == 0) {
-            // Genesis block
-            return 0 * COIN;
-        } else if (nHeight == 1) {
-            /* PREMINE: Current available axiom on DEX marketc 198360471 axiom
-            Info abobut premine: 
-            Full premine size is 198360471. First 100 blocks mine 250000 axiom per block - 198360471 - (100 * 250000) = 173360471
-            */
-            // 87.4 % of premine
-            return 173360471 * COIN;
-        } else if (nHeight < 200 && nHeight > 1) {
-            return 250000 * COIN;
-        } else if (nHeight >= 200 && nHeight <= Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            return 100000 * COIN;
-        } else if (nHeight >= 200 && nHeight > Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            return 3.8 / 90 * 100 * COIN;
-        } else {
-            return 0 * COIN;
-        }
+    if (nHeight == 0) {
+        // Genesis block
+        nSubsidy = 0 * COIN;
+    } else if (nHeight == 1) {
+         /* PREMINE: xxxx axiom */
+         nSubsidy = 8000000 * COIN;
+    } else if (nHeight <= Params().LAST_POW_BLOCK()) {
+         nSubsidy = 0 * COIN;
     } else {
-        // MAIN
-        if (nHeight == 0) {
-            // Genesis block
-            nSubsidy = 0 * COIN;
-        } else if (nHeight == 1) {
-            /* PREMINE: Current available axiom on DEX marketc 198360471 axiom
-            Info abobut premine: 
-            Full premine size is 198360471. First 100 blocks mine 250000 axiom per block - 198360471 - (100 * 250000) = 173360471
-            */
-            // 87.4 % of premine
-            nSubsidy = 173360471 * COIN;
-        } else if (nHeight > 1 && nHeight <= 101 && nHeight <= Params().LAST_POW_BLOCK()) { // check for last PoW block is not required, it does not harm to leave it *** TODO ***
-            // PoW Phase 1 does produce 12.6 % of full premine (25000000 AXM)
-            nSubsidy = 250000 * COIN;
-        } else if (nHeight > 1 && nHeight > 101 && nHeight <= Params().LAST_POW_BLOCK()) {
-            // PoW Phase does not produce any coins
-            nSubsidy = 0 * COIN;
-        } else if (nHeight > Params().LAST_POW_BLOCK() && nHeight <= 10000) {
-            // PoS - Phase 1 lasts until block 1110)
-            nSubsidy = 0 * COIN;
-        } else if (nHeight > Params().LAST_POW_BLOCK() && nHeight > 10000) {
-            // PoS - Phase 2 lasts until - undefined)
-            nSubsidy = 3.8 * COIN;
-        } else {
-            nSubsidy = 0 * COIN;
-        }
+         nSubsidy = 10 * COIN;
     }
-
+    
     return nSubsidy;
 }
 
+CAmount GetBlockValueDevFund(int nHeight)
+{
+    CAmount ret = 0;
+    
+    if (nHeight > Params().LAST_POW_BLOCK()) {
+        ret = GetBlockValue(nHeight) * Params().GetDevFundPercent() / 100;
+    }
+    
+    return ret;
+}
 
 int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCount)
 {
@@ -2187,7 +2175,7 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
                 nMasternodeCount = mnodeman.size();
         }
 
-        int64_t mNodeCoins = nMasternodeCount * 25000 * COIN;
+        int64_t mNodeCoins = nMasternodeCount * Params().GetRequiredMasternodeCollateral();
 
         // Use this log to compare the masternode count for different clients
         LogPrintf("Adjusting seesaw at height %d with %d masternodes (without drift: %d) at %ld\n", nHeight, nMasternodeCount, nMasternodeCount - Params().MasternodeCountDrift(), GetTime());
@@ -2218,7 +2206,7 @@ bool IsInitialBlockDownload()
     if (lockIBDState)
         return false;
     bool state = (chainActive.Height() < pindexBestHeader->nHeight - 24 * 6 ||
-                  pindexBestHeader->GetBlockTime() < GetTime() - 6 * 60 * 60); // ~144 blocks behind -> 2 x fork detection time
+                  (chainActive.Height() > 1 && pindexBestHeader->GetBlockTime() < GetTime() - 6 * 60 * 60)); // ~144 blocks behind -> 2 x fork detection time
     if (!state)
         lockIBDState = true;
     return state;
@@ -2845,7 +2833,7 @@ void RecalculateZAXMSpent()
         //Rewrite zAXM supply
         CBlock block;
         assert(ReadBlockFromDisk(block, pindex));
-
+LogPrintf("test2\n");
         list<libzerocoin::CoinDenomination> listDenomsSpent = ZerocoinSpendListFromBlock(block, true);
 
         //Reset the supply to previous block
@@ -3182,6 +3170,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::list<CZerocoinMint> listMints;
     bool fFilterInvalid = pindex->nHeight >= Params().Zerocoin_Block_RecalculateAccumulators();
     BlockToZerocoinMintList(block, listMints, fFilterInvalid);
+    LogPrintf("test1\n");
     std::list<libzerocoin::CoinDenomination> listSpends = ZerocoinSpendListFromBlock(block, fFilterInvalid);
 
     if (pindex->nHeight == Params().Zerocoin_Block_RecalculateAccumulators() + 1) {
@@ -3241,6 +3230,22 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     CAmount nExpectedMint = GetBlockValue(pindex->pprev->nHeight);
     if (block.IsProofOfWork())
         nExpectedMint += nFees;
+if (!block.IsProofOfWork())
+{
+        uint64_t nCoinAge;
+        uint64_t nRawValue;
+        uint64_t nReward;
+        uint32_t nTime = block.nTime;
+
+        block.vtx[1].GetCoinAge(nCoinAge, nTime, nRawValue);
+        nReward = GetPOSBlockValue(nCoinAge);
+        nExpectedMint = nRawValue + nReward;
+        LogPrintf("POS: before masternode: %s  ", FormatMoney(nExpectedMint));
+        nExpectedMint += GetMasternodePayment(nReward, true);
+        LogPrintf("after masternode: %s\n", FormatMoney(nExpectedMint));
+
+}
+        
 
     if (!IsBlockValueValid(block, nExpectedMint, pindex->nMint)) {
         return state.DoS(100,
@@ -4146,7 +4151,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
             REJECT_INVALID, "block-version");
 
         // AxiomTor - disable reject block as our blocks are in version 4 since block 1
-        /* this check can be cleaned up (**TODO** after test)
+        /* this check can be cleaned up (**TODO** after test)*/
         /*
     } else {
         if (block.nVersion >= Params().Zerocoin_HeaderVersion())
@@ -4314,7 +4319,7 @@ bool CheckWork(const CBlock block, CBlockIndex* const pindexPrev)
 
     unsigned int nBitsRequired = GetNextWorkRequired(pindexPrev, &block);
 
-    if (block.IsProofOfWork() && (pindexPrev->nHeight + 1 <= 1001)) {
+    if (block.IsProofOfWork() && (pindexPrev == NULL || pindexPrev->nHeight + 1 <= 1001)) {
         double n1 = ConvertBitsToDouble(block.nBits);
         double n2 = ConvertBitsToDouble(nBitsRequired);
 
@@ -4423,6 +4428,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
+    /*
     if (block.nVersion >= 2 &&
         CBlockIndex::IsSuperMajority(2, pindexPrev, Params().EnforceBlockUpgradeMajority())) {
         CScript expect = CScript() << nHeight;
@@ -4431,7 +4437,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
             return state.DoS(100, error("%s : block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
         }
     }
-
+   */
     return true;
 }
 
@@ -5396,8 +5402,8 @@ string GetWarnings(string strFor)
     string strStatusBar;
     string strRPC;
 
-    if (!CLIENT_VERSION_IS_RELEASE)
-        strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for staking or merchant applications!");
+  //  if (!CLIENT_VERSION_IS_RELEASE)
+    //    strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for staking or merchant applications!");
 
     if (GetBoolArg("-testsafemode", false))
         strStatusBar = strRPC = "testsafemode enabled";
@@ -6958,6 +6964,12 @@ bool CBlockUndo::WriteToDisk(CDiskBlockPos& pos, const uint256& hashBlock)
     return true;
 }
 
+int64_t GetPOSBlockValue(int64_t nCoinAge)
+{
+    int64_t nSubsidy = nCoinAge * COIN_YEAR_POS_REWARD * 33 / (365 * 33 + 8) / CENT;
+
+    return nSubsidy;
+}
 bool CBlockUndo::ReadFromDisk(const CDiskBlockPos& pos, const uint256& hashBlock)
 {
     // Open history file to read

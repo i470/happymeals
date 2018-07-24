@@ -18,6 +18,8 @@
 #include "libzerocoin/Params.h"
 #include <vector>
 
+class CBitcoinAddress;
+
 typedef unsigned char MessageStartChars[MESSAGE_START_SIZE];
 
 struct CDNSSeedData {
@@ -117,6 +119,10 @@ public:
     int Zerocoin_Block_LastGoodCheckpoint() const { return nBlockLastGoodCheckpoint; }
     int Zerocoin_StartTime() const { return nZerocoinStartTime; }
     int Block_Enforce_Invalid() const { return nBlockEnforceInvalidUTXO; }
+    
+    int64_t GetDevFundPercent() const { return nDevFundPercent; }
+    virtual CBitcoinAddress GetDevFundAddress() const = 0;
+    CAmount GetRequiredMasternodeCollateral() const { return nRequiredMasternodeCollateral; }
 
 protected:
     CChainParams() {}
@@ -174,6 +180,9 @@ protected:
     int nBlockFirstFraudulent;
     int nBlockLastGoodCheckpoint;
     int nBlockEnforceInvalidUTXO;
+    
+    int64_t nDevFundPercent;
+    CAmount nRequiredMasternodeCollateral;
 };
 
 /**

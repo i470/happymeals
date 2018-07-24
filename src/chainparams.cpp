@@ -11,6 +11,7 @@
 #include "random.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "base58.h"
 
 #include <assert.h>
 
@@ -120,13 +121,15 @@ public:
         //nMaturity = 100;
         nMaturity = 25;
         nMasternodeCountDrift = 20;             
-        nMaxMoneyOut = 21000000 * COIN;        // Max. Money is calculated by 2x premine value
+        nMaxMoneyOut = 21000000 * COIN;        // 
+        nRequiredMasternodeCollateral = 40000 * COIN; //40000
+        nDevFundPercent = 10;                  // Dev fund 10%
 
         /** Height or Time Based Activations **/
         nLastPOWBlock = 1001;                   // PoW Phase 3 End
         nModifierUpdateBlock = 1100;            // Modify block on height
         nZerocoinStartHeight = 1500;            // Zerocoin start height
-        nZerocoinStartTime = 1532908191;        // GMT: Sunday 29 July 2018 23:49:51
+        nZerocoinStartTime = 1534807872;        // GMT: Sunday 29 July 2018 23:49:51
         nBlockEnforceSerialRange = 1;           // Enforce serial range starting this block
         nBlockRecalculateAccumulators = 1650; // Trigger a recalculation of accumulators
         nBlockFirstFraudulent = 99999999;           // 1110; //First block that bad serials emerged (currently we do not have any) *** TODO ***
@@ -209,6 +212,11 @@ public:
         nBudget_Fee_Confirmations = 6; // Number of confirmations for the finalization fee
     }
 
+    CBitcoinAddress GetDevFundAddress() const
+    { 
+        return CBitcoinAddress("CNpkLLdauEJYN9zH3xvKBNfeknhmVBVE8c"); 
+    }
+    
     const Checkpoints::CCheckpointData& Checkpoints() const
     {
         return data;
@@ -306,6 +314,12 @@ public:
         nBudget_Fee_Confirmations = 3; // Number of confirmations for the finalization fee. We have to make this very short
                                        // here because we only have a 8 block finalization window on testnet
     }
+    
+    CBitcoinAddress GetDevFundAddress() const
+    { 
+        return CBitcoinAddress("y4XhfKjJPwxi42YRQssbdDytJ74W8V1bVt"); 
+    }
+    
     const Checkpoints::CCheckpointData& Checkpoints() const
     {
         return dataTestnet;
