@@ -339,6 +339,17 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
              * use vout.size() to align with several different cases.
              * An additional output is appended as the masternode payment
              */
+
+            uint64_t nCoinAge;
+            uint64_t nRawValue;
+            uint64_t nReward;
+            uint32_t nTime=0;
+            CTransaction(txNew).GetCoinAge(nCoinAge, nTime, nRawValue);
+            nReward = GetPOSBlockValue(nCoinAge);
+            masternodePayment = GetMasternodePayment(nReward, true);
+
+        
+
             unsigned int i = txNew.vout.size();
             txNew.vout.resize(i + 1);
             txNew.vout[i].scriptPubKey = payee;

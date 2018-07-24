@@ -865,6 +865,14 @@ int GetIXConfirmations(uint256 nTXHash)
     return 0;
 }
 
+bool CTransaction::GetCoinAge(uint64_t& nCoinAge, uint32_t nTime, uint64_t& nRawValue) const
+{
+    uint32_t nTxTime = nTime;
+    if (!nTxTime) {
+        nTxTime = GetAdjustedTime();
+    }
+    return ::GetCoinAge(*this, nTxTime, nCoinAge, nRawValue);
+}
 // ppcoin: total coin age spent in transaction, in the unit of coin-days.
 // Only those coins meeting minimum age requirement counts. As those
 // transactions not in main chain are not currently indexed so we
@@ -872,10 +880,11 @@ int GetIXConfirmations(uint256 nTXHash)
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nCoinAge)
+bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nCoinAge, uint64_t& nRawValue)
 {
     uint256 bnCentSecond = 0; // coin age in the unit of cent-seconds
     nCoinAge = 0;
+    nRawValue = 0;
 
     CBlockIndex* pindex = NULL;
     BOOST_FOREACH (const CTxIn& txin, tx.vin) {
@@ -907,15 +916,17 @@ bool GetCoinAge(const CTransaction& tx, const unsigned int nTxTime, uint64_t& nC
         }
 
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
-        bnCentSecond += uint256(nValueIn) * (nTxTime - prevblock.nTime);
+        nRawValue += nValueIn;
+        bnCentSecond += uint256(nValueIn) / CENT * (nTxTime - prevblock.nTime);
     }
 
-    uint256 bnCoinDay = bnCentSecond / COIN / (24 * 60 * 60);
-    LogPrintf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
+    //LogPrintf("coin age nTxTime=%d\n", nTxTime);
+    //LogPrintf("coin age bnCentSecond=%s\n", bnCentSecond.ToString().c_str());
+    uint256 bnCoinDay = bnCentSecond * CENT / (24 * 60 * 60);
+    //LogPrintf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
     nCoinAge = bnCoinDay.GetCompact();
     return true;
 }
-
 bool MoneyRange(CAmount nValueOut)
 {
     return nValueOut >= 0 && nValueOut <= Params().MaxMoneyOut();
@@ -2125,7 +2136,7 @@ CAmount GetBlockValue(int nHeight)
     } else if (nHeight <= Params().LAST_POW_BLOCK()) {
          nSubsidy = 0 * COIN;
     } else {
-         nSubsidy = 5 * COIN;
+         nSubsidy = 10 * COIN;
     }
     
     return nSubsidy;
@@ -3219,6 +3230,22 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     CAmount nExpectedMint = GetBlockValue(pindex->pprev->nHeight);
     if (block.IsProofOfWork())
         nExpectedMint += nFees;
+if (!block.IsProofOfWork())
+{
+        uint64_t nCoinAge;
+        uint64_t nRawValue;
+        uint64_t nReward;
+        uint32_t nTime = block.nTime;
+
+        block.vtx[1].GetCoinAge(nCoinAge, nTime, nRawValue);
+        nReward = GetPOSBlockValue(nCoinAge);
+        nExpectedMint = nRawValue + nReward;
+        LogPrintf("POS: before masternode: %s  ", FormatMoney(nExpectedMint));
+        nExpectedMint += GetMasternodePayment(nReward, true);
+        LogPrintf("after masternode: %s\n", FormatMoney(nExpectedMint));
+
+}
+        
 
     if (!IsBlockValueValid(block, nExpectedMint, pindex->nMint)) {
         return state.DoS(100,
@@ -5375,8 +5402,8 @@ string GetWarnings(string strFor)
     string strStatusBar;
     string strRPC;
 
-    if (!CLIENT_VERSION_IS_RELEASE)
-        strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for staking or merchant applications!");
+  //  if (!CLIENT_VERSION_IS_RELEASE)
+    //    strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for staking or merchant applications!");
 
     if (GetBoolArg("-testsafemode", false))
         strStatusBar = strRPC = "testsafemode enabled";
@@ -6937,6 +6964,12 @@ bool CBlockUndo::WriteToDisk(CDiskBlockPos& pos, const uint256& hashBlock)
     return true;
 }
 
+int64_t GetPOSBlockValue(int64_t nCoinAge)
+{
+    int64_t nSubsidy = nCoinAge * COIN_YEAR_POS_REWARD * 33 / (365 * 33 + 8) / CENT;
+
+    return nSubsidy;
+}
 bool CBlockUndo::ReadFromDisk(const CDiskBlockPos& pos, const uint256& hashBlock)
 {
     // Open history file to read
